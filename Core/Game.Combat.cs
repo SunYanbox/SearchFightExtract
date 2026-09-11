@@ -160,7 +160,16 @@ namespace SearchFightExtract
 
                 case SkillType.FirstAid:
                     player.Hp = Math.Min(player.MaxHp, player.Hp + 60);
-                    Console.WriteLine(Style.Paint("应急治疗：恢复60生命。", ColHeal));
+                    player.FirstAidDRTurns = 3;   // 80% 免伤，持续 3 回合
+                    Console.WriteLine(Style.Paint("应急治疗：恢复60生命，获得80%免伤（3回合）。", ColHeal));
+                    // 恢复后生命低于上限 70% → 差额转为护盾
+                    double threshold = player.MaxHp * 0.7;
+                    if (player.Hp < threshold)
+                    {
+                        double shieldGain = threshold - player.Hp;
+                        player.Shield += shieldGain;
+                        Console.WriteLine(Style.Paint($"  生命低于70%，获得 {shieldGain:F1} 点护盾。", ColShield));
+                    }
                     break;
 
                 case SkillType.Adrenaline:
@@ -197,7 +206,8 @@ namespace SearchFightExtract
             string sh = Style.Paint($"{player.Shield:F1}", ColShield);
             string ta = player.TempArmor > 0 ? Style.Paint($"  临时护甲 {player.TempArmor:F1}(T{player.TempArmorTier})", Style.Cyan) : "";
             string iw = player.ArmorBreakDRTurns > 0 ? Style.Paint($"  [铁壁免伤 {player.ArmorBreakDRTurns}回合]", Style.BrightYellow) : "";
-            Console.WriteLine($" 你  HP {hp}  护甲 {ar}  护盾 {sh}{ta}{iw}");
+            string fa = player.FirstAidDRTurns > 0 ? Style.Paint($"  [治疗免伤 {player.FirstAidDRTurns}回合]", Style.BrightGreen) : "";
+            Console.WriteLine($" 你  HP {hp}  护甲 {ar}  护盾 {sh}{ta}{iw}{fa}");
         }
 
         void ShowEnemyBar(Enemy e)
@@ -357,6 +367,7 @@ namespace SearchFightExtract
                     if (deepBlue) finalDmg *= 0.7;      // 深蓝：受伤 -30%
                     if (player.HasPassive(SkillType.Overload)) finalDmg *= 0.9;   // 超载：受伤 -10%
                     if (player.ArmorBreakDRTurns > 0) finalDmg *= 0.2;             // 铁壁：破甲后 80% 免伤
+                    if (player.FirstAidDRTurns > 0) finalDmg *= 0.2;               // 应急治疗：80% 免伤
                     if (edmg > 0) finalDmg = Math.Max(1, finalDmg);
 
                     // 铁壁：护甲刚刚破碎 → 触发免伤
@@ -399,6 +410,9 @@ namespace SearchFightExtract
 
                 // 铁壁免伤回合递减（破甲当回合不递减）
                 if (player.ArmorBreakDRTurns > 0 && !armorBrokeThisTurn) player.ArmorBreakDRTurns--;
+
+                // 应急治疗免伤回合递减
+                if (player.FirstAidDRTurns > 0) player.FirstAidDRTurns--;
 
                 // 临时护甲衰减
                 if (player.TempArmor > 0) player.TempArmor = Math.Max(0, player.TempArmor - 20);

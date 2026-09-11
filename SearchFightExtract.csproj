@@ -7,6 +7,7 @@
     <Nullable>disable</Nullable>
     <RootNamespace>SearchFightExtract</RootNamespace>
     <AssemblyName>SearchFightExtract</AssemblyName>
+    <Version>0.1.1</Version>
   </PropertyGroup>
 
 </Project>

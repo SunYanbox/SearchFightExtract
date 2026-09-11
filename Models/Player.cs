@@ -18,6 +18,9 @@ namespace SearchFightExtract
         // 铁壁：护甲破碎后的免伤剩余回合
         public int ArmorBreakDRTurns { get; set; } = 0;
 
+        // 应急治疗：使用后获得的免伤剩余回合
+        public int FirstAidDRTurns { get; set; } = 0;
+
         public int Money { get; set; } = 5000;
         public int Medkits { get; set; } = 2;
         public int RepairKits { get; set; } = 1;

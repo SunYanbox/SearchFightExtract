@@ -18,6 +18,7 @@ namespace SearchFightExtract
             player.Shield = 0;
             player.TempArmor = 0;
             player.ArmorBreakDRTurns = 0;
+            player.FirstAidDRTurns = 0;
             player.Backpack.Clear();
             player.TurnCounter = 0;
             foreach (var s in player.Actives) s.CurrentCooldown = 0;
