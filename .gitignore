@@ -1,0 +1,38 @@
+# ===== .NET 编译产物 =====
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# ===== 构建/发布输出 =====
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Pp]ublish/
+*.dll
+*.pdb
+*.exe
+
+# ===== 游戏运行时数据 =====
+saves/
+*.json
+!*.template.json
+
+# ===== IDE / 编辑器 =====
+.vs/
+.vscode/
+.idea/
+*.swp
+*~
+
+# ===== 操作系统 =====
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ===== 工具/代理目录（如需保留 TODO 规划，可删除相应条目） =====
+.ManualAid/
+.agents/
