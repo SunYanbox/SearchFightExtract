@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  release:
+    types: [published] # 只在 Release 被发布时触发（不覆盖草稿）
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build for Windows x64
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      # 自包含单文件发布：无需目标机器预装 .NET 运行时。
+      # PE 平台会把符号写入同名的 .pdb 伴随文件，因此发布
+      # 「精简可执行文件 + 独立符号文件」两者。
+      - name: Publish (self-contained single file)
+        run: >
+          dotnet publish SearchFightExtract.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -o publish
+
+      # 符号文件（.pdb）在某些发布配置下可能不生成，
+      # 未匹配的通配符属正常情况，不应视为错误。
+      - name: Upload asset to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          fail_on_unmatched_files: false
+          files: |
+            publish/SearchFightExtract.exe
+            publish/SearchFightExtract.pdb

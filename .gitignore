@@ -12,6 +12,7 @@ obj/
 x64/
 x86/
 [Pp]ublish/
+publish/
 *.dll
 *.pdb
 *.exe
