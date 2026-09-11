@@ -36,6 +36,16 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # 缓存 NuGet 全局包目录，键基于 csproj 内容哈希；
+      # 依赖未变时直接命中缓存，跳过重复下载。
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
       - name: Restore
         run: dotnet restore
 
