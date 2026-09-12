@@ -8,6 +8,28 @@ permissions:
   contents: write
 
 jobs:
+  # 将 CHANGELOG / BALANCE 的当前版本段落写入 Release 正文之前，
+  # 与构建任务并行执行，互不依赖。
+  notes:
+    name: Update Release notes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      # 读取 CHANGELOG.md / BALANCE.md 当前版本，按
+      # CHANGELOG → BALANCE → 默认 Release Notes 的顺序追加。
+      - name: Prepend CHANGELOG and BALANCE
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: python .github/scripts/update_release_notes.py
+
   build:
     name: Build for Windows x64
     runs-on: windows-latest

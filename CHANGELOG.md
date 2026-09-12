@@ -7,6 +7,16 @@
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-12
+
+### Added
+
+- **发布流程**：Release 发布时自动把当前版本的 CHANGELOG 与 [BALANCE.md](BALANCE.md) 段落追加到 Release Notes 之前（`.github/scripts/update_release_notes.py`）。
+
+### Changed
+
+- **应急治疗**调整：恢复 60 生命并获得 80% 免伤（3 回合）后，改为固定获得等同于最大生命值 80% 的护盾（原为生命低于上限 70% 时的差额转护盾）。详见 [BALANCE.md](BALANCE.md#012---2026-09-12)。
+
 ## [0.1.1] - 2026-09-11
 
 ### Added

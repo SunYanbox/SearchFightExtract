@@ -42,7 +42,7 @@ namespace SearchFightExtract
                 case SkillType.RapidFire:
                     Name = "快速射击"; Desc = "立即打出三段攻击（100% + 70% + 70%）"; Cooldown = 3; break;
                 case SkillType.FirstAid:
-                    Name = "应急治疗"; Desc = "恢复60生命，获得80%免伤持续3回合；若恢复后生命低于上限70%，差额转为护盾"; Cooldown = 6; break;
+                    Name = "应急治疗"; Desc = "恢复60生命，获得80%免伤持续3回合，并获得等同于最大生命值80%的护盾"; Cooldown = 6; break;
                 case SkillType.Adrenaline:
                     Name = "肾上腺素"; Desc = "清除所有主动技能冷却（不消耗回合）"; Cooldown = 10; break;
                 case SkillType.Incendiary:

@@ -161,15 +161,11 @@ namespace SearchFightExtract
                 case SkillType.FirstAid:
                     player.Hp = Math.Min(player.MaxHp, player.Hp + 60);
                     player.FirstAidDRTurns = 3;   // 80% 免伤，持续 3 回合
+                    // 获得等同于最大生命值 80% 的护盾
+                    double faShield = player.MaxHp * 0.8;
+                    player.Shield += faShield;
                     Console.WriteLine(Style.Paint("应急治疗：恢复60生命，获得80%免伤（3回合）。", ColHeal));
-                    // 恢复后生命低于上限 70% → 差额转为护盾
-                    double threshold = player.MaxHp * 0.7;
-                    if (player.Hp < threshold)
-                    {
-                        double shieldGain = threshold - player.Hp;
-                        player.Shield += shieldGain;
-                        Console.WriteLine(Style.Paint($"  生命低于70%，获得 {shieldGain:F1} 点护盾。", ColShield));
-                    }
+                    Console.WriteLine(Style.Paint($"  获得 {faShield:F1} 点护盾（最大生命值 80%）。", ColShield));
                     break;
 
                 case SkillType.Adrenaline:
