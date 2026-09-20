@@ -23,7 +23,7 @@ namespace SearchFightExtract
             player.TurnCounter = 0;
             foreach (var s in player.Actives) s.CurrentCooldown = 0;
 
-            var zones = GenerateMap();
+            var zones = MapGenerator.Generate(rng, player.Difficulty);
             int cur = 0, prev = -1;
 
             Clear();
@@ -125,7 +125,7 @@ namespace SearchFightExtract
                     if (!int.TryParse(ReadLine(), out int exSel) || exSel < 1 || exSel > known.Count) continue;
 
                     int target = known[exSel - 1];
-                    var path = FindPath(zones, cur, target);
+                    var path = MapGenerator.FindPath(zones, cur, target);
                     if (path == null || path.Count == 0) { Console.WriteLine("无法到达该撤离点。"); Pause(); return; }
 
                     bool stopped = false;
@@ -164,7 +164,7 @@ namespace SearchFightExtract
                 int chance = player.HasPassive(SkillType.Nimble) ? 18 : 35;
                 if (rng.Next(100) < chance)
                 {
-                    nz.Guard = MakeEnemy(cur, zones.Count);
+                    nz.Guard = EnemyFactory.Create(rng, player.Difficulty);
                     Console.WriteLine("你惊动了此地的敌人！");
                     return true;
                 }
@@ -315,7 +315,7 @@ namespace SearchFightExtract
             Console.WriteLine("你开始搜索...");
             int cnt = rng.Next(1, 4);
             if (player.HasPassive(SkillType.Scavenger)) cnt++;
-            for (int i = 0; i < cnt; i++) TryPickup(RollItem());
+            for (int i = 0; i < cnt; i++) TryPickup(GameData.RollItem(rng, player.Difficulty));
             if (z.HasEvent)
             {
                 Console.WriteLine($"\n事件：{z.EventDesc}");
@@ -324,7 +324,7 @@ namespace SearchFightExtract
             }
             else if (rng.Next(100) < 20)
             {
-                string ev = RollEvent();
+                string ev = MapGenerator.RollEvent(rng);
                 Console.WriteLine($"\n突发事件：{ev}");
                 HandleEvent(new Zone { EventDesc = ev });
             }
@@ -344,14 +344,14 @@ namespace SearchFightExtract
                     if (player.Money >= 200)
                     {
                         player.Money -= 200;
-                        var it = RollItem();
+                        var it = GameData.RollItem(rng, player.Difficulty);
                         TryPickup(it);
                         Console.WriteLine($"你花了200元购买了 {it.Name}。");
                     }
                     else Console.WriteLine("但你钱不够。");
                     break;
                 case "捡到一张地图，显示附近物资。":
-                    for (int i = 0; i < 2; i++) TryPickup(RollItem());
+                    for (int i = 0; i < 2; i++) TryPickup(GameData.RollItem(rng, player.Difficulty));
                     break;
                 case "空投箱！里面有高级物资。":
                     TryPickup(new Item("黄金骷髅", ItemType.Loot, 5000, 2));
@@ -364,7 +364,7 @@ namespace SearchFightExtract
                     break;
                 case "神秘信号，吸引敌人。":
                     Console.WriteLine("你被敌人发现了！");
-                    var e = MakeEnemy(1, 2);
+                    var e = EnemyFactory.Create(rng, player.Difficulty);
                     var res = Combat(e, -1);
                     if (res == CombatResult.Dead) { OnDeath(); }
                     break;

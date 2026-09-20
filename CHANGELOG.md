@@ -12,6 +12,7 @@
 - **架构拆分（纯重构，无行为变化）**：新增纯数值层 `Combat/CombatMath.cs`，把伤害 Tier 对抗结算、攻击骰点、输出增伤乘区与受击免伤乘区从 `Game.Combat.cs` 中独立出来。该层不读写游戏状态、不产生 I/O，随机数由调用方显式传入。
 - **架构拆分（纯重构，无行为变化）**：战斗结算从 `Game.Combat.cs` 移入 `Combat/CombatActions.cs`，改为「只改状态、把要显示的内容作为文本行返回」，打印交由调用方；单场战斗的跨回合临时数据（回合数、再现计数）收进 `Combat/CombatState.cs`；战斗配色语义收进 `Combat/CombatStyle.cs`。`Game.Combat.cs` 只保留回合调度与输入分发。
 - **架构拆分（纯重构，无行为变化）**：战斗界面渲染与指令读入移入 `Combat/CombatView.cs`，`Game.Combat.cs` 不再直接输出任何文本；「比例 → 绿/黄/红」的通用着色助手 `ColorByRatio` 由 `Game` 移到 `Style`（战斗 HUD 与局内 HUD 共用）。
+- **架构拆分（纯重构，无行为变化）**：`Game.Map.cs` 拆为 `World/MapGenerator.cs`（地图连通图、事件抽取、撤离点寻路）与 `World/EnemyFactory.cs`（敌人属性派生、命名）；`Game.Data.cs` 拆为 `World/GameData.cs`（商店库存、掉落表与加权抽取、难度参数），两张表改为静态只读。`Random` 与当前难度改为显式传入，生成逻辑不再依赖 `Game` 实例。
 
 ## [0.1.2] - 2026-09-12
 

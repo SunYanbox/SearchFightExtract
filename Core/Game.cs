@@ -10,8 +10,6 @@ namespace SearchFightExtract
     {
         readonly Random rng = new Random();
         Player player = new Player();
-        List<Item> shopStock = new List<Item>();
-        List<(Item item, int weight)> lootTable = new List<(Item, int)>();
 
         const string SaveDir = "saves";
         string SaveName = "";
@@ -19,7 +17,6 @@ namespace SearchFightExtract
 
         public Game()
         {
-            InitShopAndLoot();
             SelectSave();
         }
 

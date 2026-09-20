@@ -89,14 +89,14 @@ namespace SearchFightExtract
                 Clear();
                 Console.WriteLine("════════ 商 店 ════════");
                 Console.WriteLine($"资金：{player.Money}\n");
-                for (int i = 0; i < shopStock.Count; i++)
-                    Console.WriteLine($"  {i + 1}. {shopStock[i]}  —— {shopStock[i].Value} 元");
+                for (int i = 0; i < GameData.ShopStock.Count; i++)
+                    Console.WriteLine($"  {i + 1}. {GameData.ShopStock[i]}  —— {GameData.ShopStock[i].Value} 元");
                 Console.WriteLine("\n  0. 返回");
                 Console.Write("> ");
                 string cmd = ReadLine();
                 if (cmd == "0") return;
-                if (!int.TryParse(cmd, out int idx) || idx < 1 || idx > shopStock.Count) continue;
-                var it = shopStock[idx - 1];
+                if (!int.TryParse(cmd, out int idx) || idx < 1 || idx > GameData.ShopStock.Count) continue;
+                var it = GameData.ShopStock[idx - 1];
 
                 // 消耗品支持批量购买
                 bool isConsumable = it.Type == ItemType.Medkit || it.Type == ItemType.RepairKit || it.Type == ItemType.Stim;
