@@ -44,7 +44,7 @@ namespace SearchFightExtract
                     if (res == CombatResult.Dead) { OnDeath(); return; }
                     if (res == CombatResult.Fled) { cur = prev; continue; }
                     Console.WriteLine($"\n你击败了 {z.Guard.Name}！开始搜刮尸体...");
-                    foreach (var it in z.Guard.Loot) TryPickup(it);
+                    foreach (var it in z.Guard.Loot) WriteLines(Inventory.Pickup(player, it));
                     z.Guard = null;
                     Pause();
                     continue;
@@ -65,9 +65,9 @@ namespace SearchFightExtract
                 {
                     case "1": MoveMenu(zones, ref cur, ref prev); break;
                     case "2": SearchZone(z); Pause(); break;
-                    case "3": UseMedkit(); Pause(); break;
-                    case "4": UseRepairKit(); Pause(); break;
-                    case "5": UseStim(); Pause(); break;
+                    case "3": WriteLines(Inventory.UseMedkit(player)); Pause(); break;
+                    case "4": WriteLines(Inventory.UseRepairKit(player)); Pause(); break;
+                    case "5": WriteLines(Inventory.UseStim(player)); Pause(); break;
                     case "6": ShowBackpack(); Pause(); break;
                     case "7":
                         if (z.IsExtract) { ExtractResult(); return; }
@@ -197,38 +197,6 @@ namespace SearchFightExtract
             return 0;
         }
 
-        void UseMedkit()
-        {
-            if (player.RaidMedkits <= 0) Console.WriteLine("没有携带急救包。");
-            else if (player.Hp >= player.MaxHp) Console.WriteLine("状态很好。");
-            else
-            {
-                player.RaidMedkits--;
-                player.Hp = Math.Min(player.MaxHp, player.Hp + 40);
-                Console.WriteLine(Style.Paint("恢复40生命。", Style.Green));
-            }
-        }
-
-        void UseRepairKit()
-        {
-            if (player.RaidRepairKits <= 0) Console.WriteLine("没有携带维修套件。");
-            else if (player.ArmorItem == null) Console.WriteLine("没有护甲可修。");
-            else
-            {
-                player.RaidRepairKits--;
-                player.Armor = Math.Min(player.MaxArmor, player.Armor + 50);
-                Console.WriteLine(Style.Paint("护甲恢复50。", Style.Magenta));
-            }
-        }
-
-        void UseStim()
-        {
-            if (player.RaidStims <= 0) { Console.WriteLine("没有携带兴奋剂。"); return; }
-            player.RaidStims--;
-            foreach (var s in player.Actives) s.CurrentCooldown = 0;
-            Console.WriteLine("肾上腺素：所有主动技能冷却已清除！");
-        }
-
         void ShowHud(List<Zone> zones, int cur)
         {
             Console.WriteLine("──────────────────────────────────");
@@ -315,7 +283,7 @@ namespace SearchFightExtract
             Console.WriteLine("你开始搜索...");
             int cnt = rng.Next(1, 4);
             if (player.HasPassive(SkillType.Scavenger)) cnt++;
-            for (int i = 0; i < cnt; i++) TryPickup(GameData.RollItem(rng, player.Difficulty));
+            for (int i = 0; i < cnt; i++) WriteLines(Inventory.Pickup(player, GameData.RollItem(rng, player.Difficulty)));
             if (z.HasEvent)
             {
                 Console.WriteLine($"\n事件：{z.EventDesc}");
@@ -345,17 +313,17 @@ namespace SearchFightExtract
                     {
                         player.Money -= 200;
                         var it = GameData.RollItem(rng, player.Difficulty);
-                        TryPickup(it);
+                        WriteLines(Inventory.Pickup(player, it));
                         Console.WriteLine($"你花了200元购买了 {it.Name}。");
                     }
                     else Console.WriteLine("但你钱不够。");
                     break;
                 case "捡到一张地图，显示附近物资。":
-                    for (int i = 0; i < 2; i++) TryPickup(GameData.RollItem(rng, player.Difficulty));
+                    for (int i = 0; i < 2; i++) WriteLines(Inventory.Pickup(player, GameData.RollItem(rng, player.Difficulty)));
                     break;
                 case "空投箱！里面有高级物资。":
-                    TryPickup(new Item("黄金骷髅", ItemType.Loot, 5000, 2));
-                    TryPickup(new Item("五级防弹衣", ItemType.Armor, 6000, 5, 100, 5));
+                    WriteLines(Inventory.Pickup(player, new Item("黄金骷髅", ItemType.Loot, 5000, 2)));
+                    WriteLines(Inventory.Pickup(player, new Item("五级防弹衣", ItemType.Armor, 6000, 5, 100, 5)));
                     break;
                 case "辐射区，持续掉血。":
                     double rad = rng.Next(5, 15);
@@ -370,124 +338,6 @@ namespace SearchFightExtract
                     break;
             }
             if (player.Hp <= 0) OnDeath();
-        }
-
-        void TryPickup(Item it)
-        {
-            switch (it.Type)
-            {
-                case ItemType.Medkit:
-                    player.RaidMedkits++;
-                    Console.WriteLine($"  + 急救包 ×1（携带 {player.RaidMedkits}）");
-                    return;
-                case ItemType.RepairKit:
-                    player.RaidRepairKits++;
-                    Console.WriteLine($"  + 维修套件 ×1（携带 {player.RaidRepairKits}）");
-                    return;
-                case ItemType.Stim:
-                    player.RaidStims++;
-                    Console.WriteLine($"  + 肾上腺素 ×1（携带 {player.RaidStims}）");
-                    return;
-                case ItemType.Weapon:
-                    if (player.Weapon == null || it.Power > player.Weapon.Power)
-                    {
-                        var old = player.Weapon;
-                        player.Weapon = it;
-                        Console.WriteLine($"  + 换上武器 {it.Name}（伤害{it.Power:F1}）");
-                        if (old != null) AddToBackpack(old);
-                        return;
-                    }
-                    break;
-                case ItemType.Armor:
-                    if (player.ArmorItem == null || it.Power > player.ArmorItem.Power)
-                    {
-                        var old = player.ArmorItem;
-                        player.ArmorItem = it;
-                        player.Armor = it.Power;
-                        Console.WriteLine($"  + 换上护甲 {it.Name}（护甲{it.Power:F1}）");
-                        if (old != null) AddToBackpack(old);
-                        return;
-                    }
-                    break;
-                case ItemType.Rig:
-                    if (player.Rig == null || it.Power > player.Rig.Power)
-                    {
-                        var old = player.Rig;
-                        player.Rig = it;
-                        Console.WriteLine($"  + 换上胸挂 {it.Name}（容量+{it.Power:F0}，当前 {player.UsedCap}/{player.MaxCapacity}）");
-                        if (old != null) AddToBackpack(old);
-                        return;
-                    }
-                    break;
-                case ItemType.Backpack:
-                    if (player.Bag == null || it.Power > player.Bag.Power)
-                    {
-                        var old = player.Bag;
-                        player.Bag = it;
-                        Console.WriteLine($"  + 换上背包 {it.Name}（容量+{it.Power:F0}，当前 {player.UsedCap}/{player.MaxCapacity}）");
-                        if (old != null) AddToBackpack(old);
-                        return;
-                    }
-                    break;
-            }
-            AddToBackpack(it);
-        }
-
-        void AddToBackpack(Item newItem)
-        {
-            if (player.UsedCap + newItem.Weight <= player.MaxCapacity)
-            {
-                player.Backpack.Add(newItem);
-                Console.WriteLine($"  + {newItem.Name}（价值{newItem.Value} 重{newItem.Weight}）");
-                return;
-            }
-
-            int weightNeeded = player.UsedCap + newItem.Weight - player.MaxCapacity;
-            var sortedBackpack = player.Backpack
-                .OrderBy(x => (double)x.Value / x.Weight)
-                .ThenBy(x => x.Value)
-                .ToList();
-
-            var itemsToDrop = new List<Item>();
-            int freedWeight = 0;
-            int droppedValue = 0;
-            double maxDroppedRatio = 0;
-
-            foreach (var item in sortedBackpack)
-            {
-                itemsToDrop.Add(item);
-                freedWeight += item.Weight;
-                droppedValue += item.Value;
-                maxDroppedRatio = Math.Max(maxDroppedRatio, (double)item.Value / item.Weight);
-
-                if (freedWeight >= weightNeeded) break;
-            }
-
-            if (freedWeight >= weightNeeded)
-            {
-                double newRatio = (double)newItem.Value / newItem.Weight;
-                if (newRatio > maxDroppedRatio && newItem.Value >= droppedValue * 0.6)
-                {
-                    foreach (var item in itemsToDrop)
-                    {
-                        player.Backpack.Remove(item);
-                    }
-                    player.Backpack.Add(newItem);
-
-                    string droppedNames = string.Join("、", itemsToDrop.Select(i => $"{i.Name}(价值{i.Value} 重{i.Weight})"));
-                    Console.WriteLine($"  ⚠ 背包已满，自动替换丢弃：{droppedNames}");
-                    Console.WriteLine($"  + 拾取 {newItem.Name}（价值{newItem.Value} 重{newItem.Weight}）");
-                    return;
-                }
-                else
-                {
-                    string reason = newRatio <= maxDroppedRatio ? "新物品性价比不高于被替换物品" : "新物品价值低于丢弃物品总价值的60%";
-                    Console.WriteLine($"  × 背包已满，放弃拾取 {newItem.Name}（原因：{reason}）");
-                    return;
-                }
-            }
-
-            Console.WriteLine($"  × 背包已满，丢弃 {newItem.Name}（无法腾出足够空间）");
         }
 
         void ExtractResult()

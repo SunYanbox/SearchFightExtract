@@ -26,24 +26,24 @@ namespace SearchFightExtract
                     string cmd = CombatView.DrawAndReadCommand(player, e, actionIdx > 0);
                     bool playerActed = false;
 
-                    if (cmd == "1") { CombatView.Lines(CombatActions.PlayerAttack(player, e, rng)); playerActed = true; }
+                    if (cmd == "1") { WriteLines(CombatActions.PlayerAttack(player, e, rng)); playerActed = true; }
                     else if (cmd == "2")
                     {
                         var log = new List<string>();
                         playerActed = CombatActions.TryUseMedkit(player, log);
-                        CombatView.Lines(log);
+                        WriteLines(log);
                     }
                     else if (cmd == "3")
                     {
                         var log = new List<string>();
                         playerActed = CombatActions.TryUseRepairKit(player, log);
-                        CombatView.Lines(log);
+                        WriteLines(log);
                     }
                     else if (cmd == "4")
                     {
                         var log = new List<string>();
                         bool used = CombatActions.TryUseStim(player, log);
-                        CombatView.Lines(log);
+                        WriteLines(log);
                         if (used) { actionIdx--; continue; }   // 兴奋剂不消耗行动
                     }
                     else if (int.TryParse(cmd, out int skillIdx) && skillIdx >= 5 && skillIdx < 5 + player.Actives.Count)
@@ -52,7 +52,7 @@ namespace SearchFightExtract
                         if (s.CurrentCooldown > 0) CombatView.SkillOnCooldown(s);
                         else
                         {
-                            CombatView.Lines(CombatActions.UseSkill(player, e, s, rng));
+                            WriteLines(CombatActions.UseSkill(player, e, s, rng));
                             // 肾上腺素不消耗行动（与兴奋剂一致）
                             if (s.Type == SkillType.Adrenaline) { actionIdx--; continue; }
                             playerActed = true;
@@ -69,13 +69,13 @@ namespace SearchFightExtract
                     if (!playerActed) { actionIdx--; continue; }
 
                     if (actionIdx == 0 && player.HasPassive(SkillType.Overload) && st.Turn % 2 == 0)
-                        CombatView.Lines(CombatActions.OverloadAttack(player, e, rng));
+                        WriteLines(CombatActions.OverloadAttack(player, e, rng));
 
                     if (e.Hp <= 0) { CombatView.EnemyDefeated(e); Pause(); return CombatResult.Win; }
                 }
 
                 // ===== 敌方行动 + 回合末结算 =====
-                CombatView.Lines(CombatActions.EnemyTurn(st, player, e, rng));
+                WriteLines(CombatActions.EnemyTurn(st, player, e, rng));
 
                 // 敌人只可能被燃烧烧死，且此时 EnemyTurn 已提前返回
                 if (e.Hp <= 0) { Pause(); return CombatResult.Win; }

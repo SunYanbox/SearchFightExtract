@@ -74,12 +74,6 @@ namespace SearchFightExtract
             return ReadLine();
         }
 
-        /// <summary>打印结算层返回的文本行。</summary>
-        public static void Lines(List<string> lines)
-        {
-            foreach (var line in lines) Console.WriteLine(line);
-        }
-
         // ===== 指令反馈与战斗结局 =====
 
         public static void SkillOnCooldown(Skill s)

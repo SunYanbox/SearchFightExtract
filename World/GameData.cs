@@ -13,6 +13,24 @@ namespace SearchFightExtract
 
         static readonly List<(Item item, int weight)> LootTable = BuildLootTable();
 
+        /// <summary>生产配方：名称 / 消耗材料 / 消耗资金 / 产出数量。索引即菜单编号（1 起）。</summary>
+        public static readonly (string name, int mat, int money, int qty)[] Recipes =
+        {
+            ("急救包", 3, 40, 2),
+            ("装备维修套件", 3, 60, 2),
+            ("肾上腺素", 20, 500, 2),
+        };
+
+        /// <summary>
+        /// 部门升级到「下一级」的消耗：Lv1 用资金，Lv2 起用材料，均按指数增长。
+        /// </summary>
+        public static void UpgradeCost(int currentLevel, out int money, out int material)
+        {
+            int next = currentLevel + 1;
+            if (next <= 1) { money = 500; material = 0; }
+            else { money = 0; material = (int)(100 * Math.Pow(2.5, next - 2)); }
+        }
+
         /// <summary>
         /// 按难度加权的掉落抽取：难度越高，高价值物品的权重提升越多。
         /// 返回的是副本，调用方可随意改动。

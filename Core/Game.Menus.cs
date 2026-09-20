@@ -205,14 +205,6 @@ namespace SearchFightExtract
             }
         }
 
-        // 生产配方：名称 / 消耗材料 / 消耗资金 / 产出数量
-        (string name, int mat, int money, int qty)[] Recipes => new[]
-        {
-            ("急救包", 3, 40, 2),
-            ("装备维修套件", 3, 60, 2),
-            ("肾上腺素", 20, 500, 2),
-        };
-
         void ProductionMenu()
         {
             while (true)
@@ -222,7 +214,7 @@ namespace SearchFightExtract
                 Console.WriteLine($"资金：{player.Money}   材料：{player.Materials}");
                 Console.WriteLine("（材料来自仓库分解物资，与出售相互独立）\n");
 
-                var rec = Recipes;
+                var rec = GameData.Recipes;
                 for (int i = 0; i < rec.Length; i++)
                     Console.WriteLine($"  {i + 1}. 生产 {rec[i].name} ×{rec[i].qty}   —— 需 {rec[i].mat} 材料 + {rec[i].money} 元");
                 Console.WriteLine("\n  0. 返回");
@@ -250,22 +242,13 @@ namespace SearchFightExtract
             }
         }
 
-        // 升级到 nextLevel = currentLevel + 1 的消耗：
-        // nextLevel 1 → 金钱；nextLevel >= 2 → 材料。均按指数增长。
-        void UpgradeCost(int currentLevel, out int money, out int material)
-        {
-            int next = currentLevel + 1;
-            if (next <= 1) { money = 500; material = 0; }
-            else { money = 0; material = (int)(100 * Math.Pow(2.5, next - 2)); }
-        }
-
         void PrintDeptLine(int num, string name, int lv, int maxLv, string effect)
         {
             string costText;
             if (lv >= maxLv) costText = "已满级";
             else
             {
-                UpgradeCost(lv, out int m, out int mat);
+                GameData.UpgradeCost(lv, out int m, out int mat);
                 costText = m > 0 ? $"升级需 {m} 元" : $"升级需 {mat} 材料";
             }
             Console.WriteLine($"  {num}. {name}  Lv{lv}  {effect}   [{costText}]");
@@ -296,7 +279,7 @@ namespace SearchFightExtract
                 int maxLevel = dept <= 1 ? 3 : 5;
                 if (curLevel >= maxLevel) { Console.WriteLine("\n该部门已满级。"); Pause(); continue; }
 
-                UpgradeCost(curLevel, out int moneyCost, out int matCost);
+                GameData.UpgradeCost(curLevel, out int moneyCost, out int matCost);
                 if (moneyCost > 0 && player.Money < moneyCost) { Console.WriteLine($"\n资金不足（需要 {moneyCost}，拥有 {player.Money}）。"); Pause(); continue; }
                 if (matCost > 0 && player.Materials < matCost) { Console.WriteLine($"\n材料不足（需要 {matCost}，拥有 {player.Materials}）。"); Pause(); continue; }
 
