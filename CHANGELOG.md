@@ -10,6 +10,7 @@
 ### Changed
 
 - **架构拆分（纯重构，无行为变化）**：新增纯数值层 `Combat/CombatMath.cs`，把伤害 Tier 对抗结算、攻击骰点、输出增伤乘区与受击免伤乘区从 `Game.Combat.cs` 中独立出来。该层不读写游戏状态、不产生 I/O，随机数由调用方显式传入。
+- **架构拆分（纯重构，无行为变化）**：战斗结算从 `Game.Combat.cs` 移入 `Combat/CombatActions.cs`，改为「只改状态、把要显示的内容作为文本行返回」，打印交由调用方；单场战斗的跨回合临时数据（回合数、再现计数）收进 `Combat/CombatState.cs`；战斗配色语义收进 `Combat/CombatStyle.cs`。`Game.Combat.cs` 只保留回合调度与输入分发。
 
 ## [0.1.2] - 2026-09-12
 

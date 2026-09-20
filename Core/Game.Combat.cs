@@ -1,166 +1,15 @@
 using System;
-using System.Linq;
+using System.Collections.Generic;
 using static SearchFightExtract.ConsoleHelper;
 
 namespace SearchFightExtract
 {
     partial class Game
     {
-        // 战斗显示用配色
-        const string ColDamage = Style.BrightRed;    // 造成伤害
-        const string ColHeal = Style.Green;          // 治疗
-        const string ColShield = Style.BrightBlack;  // 护盾抵消
-        const string ColArmor = Style.Cyan;          // 护甲抵消/回复（青色，便于辨认）
-        const string ColExtra = Style.BrightCyan;    // 额外回合
-
-        // 造成伤害后触发的战斗部门效果（吸血 / 护甲回复）
-        void ApplyOnHit(double damage)
+        // 结算层返回的文本行统一由此打印
+        static void PrintLines(List<string> lines)
         {
-            if (damage <= 0) return;
-
-            if (player.CombatLifeSteal > 0)
-            {
-                double before = player.Hp;
-                player.Hp = Math.Min(player.MaxHp, player.Hp + damage * player.CombatLifeSteal);
-                double actual = player.Hp - before;
-                if (actual > 0.05)
-                    Console.WriteLine(Style.Paint($"  吸血：恢复 {actual:F1} 生命", ColHeal));
-            }
-
-            if (player.CombatArmorRestore > 0 && player.ArmorItem != null && player.Armor > 0)
-            {
-                double before = player.Armor;
-                player.Armor = Math.Min(player.MaxArmor, player.Armor + damage * player.CombatArmorRestore);
-                double actual = player.Armor - before;
-                if (actual > 0.05)
-                    Console.WriteLine(Style.Paint($"  护甲回复：+{actual:F1}", ColArmor));
-            }
-        }
-
-        double PlayerAttack(Enemy e, double multiplier = 1.0)
-        {
-            double baseDmg = player.Weapon?.Power ?? 5;
-            int bulletTier = player.Weapon?.Tier ?? 0;
-            double dmg = CombatMath.RollAttack(rng, baseDmg) * multiplier
-                * CombatMath.DamageDealtMult(player.CombatDamageBonus, e.WeakenTurns > 0);
-
-            double enemyArmor = e.Armor;
-            double final = CombatMath.CalculateDamage(dmg, bulletTier, e.ArmorTier, ref enemyArmor, out double armorLoss);
-            e.Armor = enemyArmor;
-            e.Hp -= final;
-
-            string dmgStr = Style.Paint($"{final:F1}", ColDamage);
-            if (armorLoss > 0)
-                Console.WriteLine($"你造成 {dmgStr} 伤害，削减敌方 {Style.Paint($"{armorLoss:F1}", ColArmor)} 点护甲。");
-            else
-                Console.WriteLine($"你造成 {dmgStr} 伤害。");
-
-            ApplyOnHit(final);
-            return final;
-        }
-
-        void UseSkill(Skill skill, Enemy e)
-        {
-            switch (skill.Type)
-            {
-                case SkillType.Shield:
-                    player.Shield += 120;
-                    player.TempArmor += 80;
-                    player.TempArmorTier = 6;
-                    Console.WriteLine(Style.Paint("应急护盾：获得120点护盾 + 80点临时护甲（六级，每回合衰减20）。", ColShield));
-                    break;
-
-                case SkillType.Dragon:
-                    {
-                        // 60 真实伤害（无视护甲）+ 60 普通伤害，均可享受增伤乘区；敌人生命<70% 时额外 +75%（入乘区）
-                        double bonus = player.CombatDamageBonus + (e.WeakenTurns > 0 ? 0.2 : 0);
-                        if (e.Hp < e.MaxHp * 0.7) bonus += 0.75;
-                        double mult = 1 + bonus;
-
-                        double trueDmg = 60 * mult;
-                        e.Hp -= trueDmg;
-                        Console.WriteLine($"磁吸炸弹·真实伤害：{Style.Paint($"{trueDmg:F1}", ColDamage)}（无视护甲）");
-                        ApplyOnHit(trueDmg);
-
-                        if (e.Hp > 0)
-                        {
-                            double normBase = 60 * mult;
-                            double a1 = e.Armor;
-                            double f1 = CombatMath.CalculateDamage(normBase, 7, e.ArmorTier, ref a1, out double al1);
-                            e.Armor = a1;
-                            e.Hp -= f1;
-                            if (al1 > 0)
-                                Console.WriteLine($"磁吸炸弹·爆炸伤害：{Style.Paint($"{f1:F1}", ColDamage)}，削减敌方 {Style.Paint($"{al1:F1}", ColArmor)} 点护甲。");
-                            else
-                                Console.WriteLine($"磁吸炸弹·爆炸伤害：{Style.Paint($"{f1:F1}", ColDamage)}。");
-                            ApplyOnHit(f1);
-                        }
-                    }
-                    break;
-
-                case SkillType.Net:
-                    {
-                        double netDmg = 60 * (1 + player.CombatDamageBonus);
-                        double a2 = e.Armor;
-                        double f2 = CombatMath.CalculateDamage(netDmg, 7, e.ArmorTier, ref a2, out double al2);
-                        e.Armor = a2;
-                        e.Hp -= f2;
-                        e.SkipNextTurn = true;
-                        bool newWeaken = e.WeakenTurns <= 0;
-                        if (newWeaken) e.WeakenTurns = 3;   // 受伤状态 3 回合，不重复叠加
-                        if (al2 > 0)
-                            Console.WriteLine($"防爆刺网造成 {Style.Paint($"{f2:F1}", ColDamage)} 伤害，削减敌方 {Style.Paint($"{al2:F1}", ColArmor)} 点护甲，并束缚敌人。");
-                        else
-                            Console.WriteLine($"防爆刺网造成 {Style.Paint($"{f2:F1}", ColDamage)} 伤害，并束缚敌人。");
-                        if (newWeaken)
-                            Console.WriteLine(Style.Paint("  敌人陷入【受伤】状态（3回合，受到伤害+20%）", Style.BrightYellow));
-                        else
-                            Console.WriteLine(Style.Paint("  敌人已处于【受伤】状态（不叠加）", Style.BrightBlack));
-                        ApplyOnHit(f2);
-                    }
-                    break;
-
-                case SkillType.RapidFire:
-                    Console.WriteLine("快速射击（三段）！");
-                    PlayerAttack(e, 1.0);
-                    if (e.Hp > 0) PlayerAttack(e, 0.7);
-                    if (e.Hp > 0) PlayerAttack(e, 0.7);
-                    break;
-
-                case SkillType.FirstAid:
-                    player.Hp = Math.Min(player.MaxHp, player.Hp + 60);
-                    player.FirstAidDRTurns = 3;   // 80% 免伤，持续 3 回合
-                    // 获得等同于最大生命值 80% 的护盾
-                    double faShield = player.MaxHp * 0.8;
-                    player.Shield += faShield;
-                    Console.WriteLine(Style.Paint("应急治疗：恢复60生命，获得80%免伤（3回合）。", ColHeal));
-                    Console.WriteLine(Style.Paint($"  获得 {faShield:F1} 点护盾（最大生命值 80%）。", ColShield));
-                    break;
-
-                case SkillType.Adrenaline:
-                    foreach (var sk in player.Actives) sk.CurrentCooldown = 0;
-                    Console.WriteLine("肾上腺素：所有主动技能冷却已清除！（不消耗行动）");
-                    break;
-
-                case SkillType.Incendiary:
-                    {
-                        double fireDmg = 75 * (1 + player.CombatDamageBonus);
-                        double fa = e.Armor;
-                        double ff = CombatMath.CalculateDamage(fireDmg, 7, e.ArmorTier, ref fa, out double fal);
-                        e.Armor = fa;
-                        e.Hp -= ff;
-                        e.SkipNextTurn = true;   // 敌人灭火，失去下一回合
-                        e.BurnTurns = 3;
-                        e.BurnDamage = 15;
-                        if (fal > 0)
-                            Console.WriteLine($"燃烧弹造成 {Style.Paint($"{ff:F1}", ColDamage)} 伤害，削减敌方 {Style.Paint($"{fal:F1}", ColArmor)} 点护甲，敌人失去下一回合灭火！");
-                        else
-                            Console.WriteLine($"燃烧弹造成 {Style.Paint($"{ff:F1}", ColDamage)} 伤害，敌人失去下一回合灭火！");
-                        ApplyOnHit(ff);
-                    }
-                    break;
-            }
-            skill.CurrentCooldown = skill.Cooldown;
+            foreach (var line in lines) Console.WriteLine(line);
         }
 
         // HUD 单行：我方状态（生命/护甲按比例着色，护盾灰色）
@@ -168,7 +17,7 @@ namespace SearchFightExtract
         {
             string hp = Style.Paint($"{player.Hp:F1}/{player.MaxHp:F1}", ColorByRatio(player.Hp, player.MaxHp));
             string ar = Style.Paint($"{player.Armor:F1}/{player.MaxArmor:F1}", ColorByRatio(player.Armor, player.MaxArmor));
-            string sh = Style.Paint($"{player.Shield:F1}", ColShield);
+            string sh = Style.Paint($"{player.Shield:F1}", CombatStyle.Shield);
             string ta = player.TempArmor > 0 ? Style.Paint($"  临时护甲 {player.TempArmor:F1}(T{player.TempArmorTier})", Style.Cyan) : "";
             string iw = player.ArmorBreakDRTurns > 0 ? Style.Paint($"  [铁壁免伤 {player.ArmorBreakDRTurns}回合]", Style.BrightYellow) : "";
             string fa = player.FirstAidDRTurns > 0 ? Style.Paint($"  [治疗免伤 {player.FirstAidDRTurns}回合]", Style.BrightGreen) : "";
@@ -178,7 +27,7 @@ namespace SearchFightExtract
         void ShowEnemyBar(Enemy e)
         {
             string hp = Style.Paint($"{e.Hp:F1}/{e.MaxHp:F1}", ColorByRatio(e.Hp, e.MaxHp));
-            string ar = Style.Paint($"{e.Armor:F1}", e.Armor > 0 ? ColArmor : Style.BrightBlack);
+            string ar = Style.Paint($"{e.Armor:F1}", e.Armor > 0 ? CombatStyle.Armor : Style.BrightBlack);
             string next = e.SkipNextTurn
                 ? Style.Paint("[下回合无法行动]", Style.BrightGreen)
                 : Style.Paint("[下回合可行动]", Style.BrightRed);
@@ -187,30 +36,27 @@ namespace SearchFightExtract
             Console.WriteLine($" 敌  HP {hp}   护甲 {ar}   {next}{weaken}{burn}");
         }
 
+        // 战斗主循环：只负责回合调度与输入分发，结算与文本都在 CombatActions 里
         CombatResult Combat(Enemy e, int prev)
         {
             Console.WriteLine($"\n⚔ 遭遇 {Style.Paint(e.Name, Style.BrightRed)}！");
             Console.WriteLine($"  敌方 HP {e.MaxHp:F1} / 伤害 {e.Damage:F1} / 护甲 {e.MaxArmor:F1}(Tier{e.ArmorTier}) 子弹Tier{e.BulletTier}");
             Pause();
 
-            bool deepBlue = player.HasPassive(SkillType.DeepBlue);
-            bool reappear = player.HasPassive(SkillType.Reappear);
-            double dmgTakenAccum = 0;      // 再现：血量伤害 + 0.3 × 护甲伤害
-            int pendingExtraTurns = 0;
-            int turn = 0;
+            var st = new CombatState();
 
             while (true)
             {
-                turn++;
+                st.Turn++;
 
-                int actionsThisTurn = 1 + pendingExtraTurns;
-                pendingExtraTurns = 0;
+                int actionsThisTurn = 1 + st.PendingExtraTurns;
+                st.PendingExtraTurns = 0;
 
                 for (int actionIdx = 0; actionIdx < actionsThisTurn; actionIdx++)
                 {
                     Console.WriteLine();
                     if (actionIdx > 0)
-                        Console.WriteLine(Style.Paint("  ★★【再现·额外行动】插入行动，不消耗回合 ★★", ColExtra));
+                        Console.WriteLine(Style.Paint("  ★★【再现·额外行动】插入行动，不消耗回合 ★★", CombatStyle.Extra));
                     Console.WriteLine("──────────────────────────────────");
                     ShowPlayerBar();
                     ShowEnemyBar(e);
@@ -233,34 +79,25 @@ namespace SearchFightExtract
                     string cmd = ReadLine();
                     bool playerActed = false;
 
-                    if (cmd == "1") { PlayerAttack(e); playerActed = true; }
+                    if (cmd == "1") { PrintLines(CombatActions.PlayerAttack(player, e, rng)); playerActed = true; }
                     else if (cmd == "2")
                     {
-                        if (player.RaidMedkits > 0) { player.RaidMedkits--; player.Hp = Math.Min(player.MaxHp, player.Hp + 40); Console.WriteLine(Style.Paint("恢复40生命。", ColHeal)); playerActed = true; }
-                        else Console.WriteLine("没有急救包！");
+                        var log = new List<string>();
+                        playerActed = CombatActions.TryUseMedkit(player, log);
+                        PrintLines(log);
                     }
                     else if (cmd == "3")
                     {
-                        if (player.RaidRepairKits > 0)
-                        {
-                            player.RaidRepairKits--;
-                            if (player.ArmorItem != null) { player.Armor = Math.Min(player.MaxArmor, player.Armor + 50); Console.WriteLine(Style.Paint("护甲恢复50。", ColArmor)); }
-                            else Console.WriteLine("没有护甲可修。");
-                            playerActed = true;
-                        }
-                        else Console.WriteLine("没有维修套件！");
+                        var log = new List<string>();
+                        playerActed = CombatActions.TryUseRepairKit(player, log);
+                        PrintLines(log);
                     }
                     else if (cmd == "4")
                     {
-                        if (player.RaidStims > 0)
-                        {
-                            player.RaidStims--;
-                            foreach (var sk in player.Actives) sk.CurrentCooldown = 0;
-                            Console.WriteLine("肾上腺素：所有主动技能冷却已清除！（不消耗行动）");
-                            actionIdx--;
-                            continue;
-                        }
-                        else Console.WriteLine("没有兴奋剂！");
+                        var log = new List<string>();
+                        bool used = CombatActions.TryUseStim(player, log);
+                        PrintLines(log);
+                        if (used) { actionIdx--; continue; }   // 兴奋剂不消耗行动
                     }
                     else if (int.TryParse(cmd, out int skillIdx) && skillIdx >= 5 && skillIdx < 5 + player.Actives.Count)
                     {
@@ -268,7 +105,7 @@ namespace SearchFightExtract
                         if (s.CurrentCooldown > 0) { Console.WriteLine($"{s.Name} 正在冷却中，无法使用！"); }
                         else
                         {
-                            UseSkill(s, e);
+                            PrintLines(CombatActions.UseSkill(player, e, s, rng));
                             // 肾上腺素不消耗行动（与兴奋剂一致）
                             if (s.Type == SkillType.Adrenaline) { actionIdx--; continue; }
                             playerActed = true;
@@ -284,109 +121,17 @@ namespace SearchFightExtract
 
                     if (!playerActed) { actionIdx--; continue; }
 
-                    if (actionIdx == 0 && player.HasPassive(SkillType.Overload) && turn % 2 == 0)
-                    {
-                        Console.WriteLine(Style.Paint("【超载】触发额外攻击！", Style.BrightYellow));
-                        PlayerAttack(e, 1.25);
-                    }
+                    if (actionIdx == 0 && player.HasPassive(SkillType.Overload) && st.Turn % 2 == 0)
+                        PrintLines(CombatActions.OverloadAttack(player, e, rng));
 
                     if (e.Hp <= 0) { Console.WriteLine(Style.Paint($"{e.Name} 倒下了。", Style.BrightGreen)); Pause(); return CombatResult.Win; }
                 }
 
-                // ===== 敌方行动 =====
-                bool armorBrokeThisTurn = false;
-                if (e.SkipNextTurn) { Console.WriteLine($"{e.Name} 被束缚/灭火，跳过回合。"); e.SkipNextTurn = false; }
-                else
-                {
-                    if (e.BurnTurns > 0)
-                    {
-                        double burn = e.BurnDamage;
-                        double bAbsorb = Math.Min(e.Armor, burn);
-                        e.Armor -= bAbsorb;
-                        double bHp = burn - bAbsorb;
-                        e.Hp -= bHp;
-                        e.BurnTurns--;
-                        Console.WriteLine($"燃烧持续：护甲吸收 {Style.Paint($"{bAbsorb:F1}", ColArmor)}，造成 {Style.Paint($"{bHp:F1}", ColDamage)} 伤害。");
-                        if (e.Hp <= 0) { Console.WriteLine(Style.Paint($"{e.Name} 被烧尽了。", Style.BrightGreen)); Pause(); return CombatResult.Win; }
-                    }
+                // ===== 敌方行动 + 回合末结算 =====
+                PrintLines(CombatActions.EnemyTurn(st, player, e, rng));
 
-                    double edmg = CombatMath.RollAttack(rng, e.Damage);
-                    double armorBefore = player.Armor;
-                    double armorLossP;
-                    double finalDmg;
-
-                    // 临时护甲优先消耗（按指定 Tier 结算）
-                    if (player.TempArmor > 0)
-                    {
-                        double ta = player.TempArmor;
-                        finalDmg = CombatMath.CalculateDamage(edmg, e.BulletTier, player.TempArmorTier, ref ta, out armorLossP, player.ArmorLossMult);
-                        player.TempArmor = ta;
-                    }
-                    else
-                    {
-                        double playerArmor = player.Armor;
-                        finalDmg = CombatMath.CalculateDamage(edmg, e.BulletTier, player.ArmorItem?.Tier ?? 0, ref playerArmor, out armorLossP, player.ArmorLossMult);
-                        player.Armor = playerArmor;
-                    }
-
-                    // 深蓝 -30% / 超载 -10% / 铁壁破甲 -80% / 应急治疗 -80%
-                    finalDmg = CombatMath.ApplyDamageTakenReduction(
-                        finalDmg,
-                        deepBlue,
-                        player.HasPassive(SkillType.Overload),
-                        player.ArmorBreakDRTurns > 0,
-                        player.FirstAidDRTurns > 0);
-                    if (edmg > 0) finalDmg = Math.Max(1, finalDmg);
-
-                    // 铁壁：护甲刚刚破碎 → 触发免伤
-                    if (player.HasPassive(SkillType.IronWall) && armorBefore > 0 && player.Armor <= 0)
-                    {
-                        player.ArmorBreakDRTurns = 2;
-                        armorBrokeThisTurn = true;
-                        Console.WriteLine(Style.Paint("【铁壁】护甲破碎！获得80%免伤，持续2回合。", Style.BrightYellow));
-                    }
-
-                    if (player.Shield > 0)
-                    {
-                        double absorbed = Math.Min(player.Shield, finalDmg);
-                        player.Shield -= absorbed;
-                        finalDmg -= absorbed;
-                        Console.WriteLine(Style.Paint($"护盾吸收 {absorbed:F1} 伤害。", ColShield));
-                    }
-                    player.Hp -= finalDmg;
-                    string eDmgStr = Style.Paint($"{finalDmg:F1}", ColDamage);
-                    if (armorLossP > 0)
-                        Console.WriteLine($"{e.Name} 攻击，造成 {eDmgStr} 伤害，你的护甲损失 {Style.Paint($"{armorLossP:F1}", ColArmor)} 点。");
-                    else
-                        Console.WriteLine($"{e.Name} 攻击，造成 {eDmgStr} 伤害。");
-
-                    // 再现：累计 = 血量伤害 + 0.3 × 护甲伤害
-                    if (reappear)
-                    {
-                        dmgTakenAccum += finalDmg + armorLossP * 0.3;
-                        while (dmgTakenAccum >= 50)
-                        {
-                            dmgTakenAccum -= 50;
-                            pendingExtraTurns++;
-                            Console.WriteLine(Style.Paint("【再现】累计受伤达到50，下回合获得一个额外行动！", ColExtra));
-                        }
-                    }
-                }
-
-                // 受伤状态递减
-                if (e.WeakenTurns > 0) e.WeakenTurns--;
-
-                // 铁壁免伤回合递减（破甲当回合不递减）
-                if (player.ArmorBreakDRTurns > 0 && !armorBrokeThisTurn) player.ArmorBreakDRTurns--;
-
-                // 应急治疗免伤回合递减
-                if (player.FirstAidDRTurns > 0) player.FirstAidDRTurns--;
-
-                // 临时护甲衰减
-                if (player.TempArmor > 0) player.TempArmor = Math.Max(0, player.TempArmor - 20);
-
-                if (player.Shield > 0) player.Shield = Math.Max(0, player.Shield - 20);
-                foreach (var s in player.Actives) if (s.CurrentCooldown > 0) s.CurrentCooldown--;
+                // 敌人只可能被燃烧烧死，且此时 EnemyTurn 已提前返回
+                if (e.Hp <= 0) { Pause(); return CombatResult.Win; }
 
                 if (player.Hp <= 0) { Console.WriteLine(Style.Paint("\n你倒下了...", Style.BrightRed)); Pause(); return CombatResult.Dead; }
             }
