@@ -232,8 +232,8 @@ namespace SearchFightExtract
         void ShowHud(List<Zone> zones, int cur)
         {
             Console.WriteLine("──────────────────────────────────");
-            string hp = Style.Paint($"{player.Hp:F1}/{player.MaxHp:F1}", ColorByRatio(player.Hp, player.MaxHp));
-            string ar = Style.Paint($"{player.Armor:F1}/{player.MaxArmor:F1}", ColorByRatio(player.Armor, player.MaxArmor));
+            string hp = Style.Paint($"{player.Hp:F1}/{player.MaxHp:F1}", Style.ColorByRatio(player.Hp, player.MaxHp));
+            string ar = Style.Paint($"{player.Armor:F1}/{player.MaxArmor:F1}", Style.ColorByRatio(player.Armor, player.MaxArmor));
             string sh = Style.Paint($"{player.Shield:F1}", Style.BrightBlack);
             string ta = player.TempArmor > 0 ? Style.Paint($"  临时护甲 {player.TempArmor:F1}", Style.Cyan) : "";
             string iw = player.ArmorBreakDRTurns > 0 ? Style.Paint($"  [铁壁免伤 {player.ArmorBreakDRTurns}回合]", Style.BrightYellow) : "";

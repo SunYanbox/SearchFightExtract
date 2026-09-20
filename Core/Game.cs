@@ -62,16 +62,6 @@ namespace SearchFightExtract
             }
         }
 
-        // 按当前值/上限比例返回颜色：安全绿、警示黄、危险红
-        internal static string ColorByRatio(double cur, double max)
-        {
-            if (max <= 0) return Style.BrightBlack;
-            double r = cur / max;
-            if (r >= 0.7) return Style.Green;
-            if (r >= 0.3) return Style.Yellow;
-            return Style.BrightRed;
-        }
-
         void DifficultyMenu()
         {
             Clear();

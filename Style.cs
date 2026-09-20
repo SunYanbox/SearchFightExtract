@@ -7,6 +7,16 @@ namespace SearchFightExtract
     /// </summary>
     static class Style
     {
+        /// <summary>按「当前值/上限」比例返回颜色：安全绿、警示黄、危险红。上限为 0 时返回灰色。</summary>
+        public static string ColorByRatio(double cur, double max)
+        {
+            if (max <= 0) return BrightBlack;
+            double r = cur / max;
+            if (r >= 0.7) return Green;
+            if (r >= 0.3) return Yellow;
+            return BrightRed;
+        }
+
         public const string Reset = "\u001b[0m";
 
         // ===== 标准前景色 =====
