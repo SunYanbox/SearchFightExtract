@@ -13,38 +13,6 @@ namespace SearchFightExtract
         const string ColArmor = Style.Cyan;          // 护甲抵消/回复（青色，便于辨认）
         const string ColExtra = Style.BrightCyan;    // 额外回合
 
-        double CalculateDamage(double baseDmg, int bulletTier, int armorTier, ref double armor, out double armorLoss, double armorLossMult = 1.0)
-        {
-            armorLoss = 0;
-            if (armor <= 0) return baseDmg;
-
-            double armorBefore = armor;
-
-            double dmgMultiplier;
-            double absorbRate;
-
-            if (bulletTier > armorTier) { dmgMultiplier = 1.0; absorbRate = 0.3; }
-            else if (bulletTier == armorTier) { dmgMultiplier = 0.75; absorbRate = 0.5; }
-            else { dmgMultiplier = 0.5; absorbRate = 0.8; }
-
-            double theoretical = baseDmg * dmgMultiplier;
-            double absorbed = theoretical * absorbRate;
-
-            armor = Math.Max(0, armor - absorbed * armorLossMult);
-            armorLoss = armorBefore - armor;
-
-            double final = theoretical - absorbed;
-            return Math.Max(1, final);
-        }
-
-        // 玩家对敌增伤乘区：战斗部门 + 深蓝刺网「受伤」20%（同类加算）
-        double PlayerDmgMult(Enemy e)
-        {
-            double m = 1 + player.CombatDamageBonus;
-            if (e.WeakenTurns > 0) m += 0.2;
-            return m;
-        }
-
         // 造成伤害后触发的战斗部门效果（吸血 / 护甲回复）
         void ApplyOnHit(double damage)
         {
@@ -73,10 +41,11 @@ namespace SearchFightExtract
         {
             double baseDmg = player.Weapon?.Power ?? 5;
             int bulletTier = player.Weapon?.Tier ?? 0;
-            double dmg = rng.Next((int)(baseDmg / 2), (int)(baseDmg + 1)) * multiplier * PlayerDmgMult(e);
+            double dmg = CombatMath.RollAttack(rng, baseDmg) * multiplier
+                * CombatMath.DamageDealtMult(player.CombatDamageBonus, e.WeakenTurns > 0);
 
             double enemyArmor = e.Armor;
-            double final = CalculateDamage(dmg, bulletTier, e.ArmorTier, ref enemyArmor, out double armorLoss);
+            double final = CombatMath.CalculateDamage(dmg, bulletTier, e.ArmorTier, ref enemyArmor, out double armorLoss);
             e.Armor = enemyArmor;
             e.Hp -= final;
 
@@ -117,7 +86,7 @@ namespace SearchFightExtract
                         {
                             double normBase = 60 * mult;
                             double a1 = e.Armor;
-                            double f1 = CalculateDamage(normBase, 7, e.ArmorTier, ref a1, out double al1);
+                            double f1 = CombatMath.CalculateDamage(normBase, 7, e.ArmorTier, ref a1, out double al1);
                             e.Armor = a1;
                             e.Hp -= f1;
                             if (al1 > 0)
@@ -133,7 +102,7 @@ namespace SearchFightExtract
                     {
                         double netDmg = 60 * (1 + player.CombatDamageBonus);
                         double a2 = e.Armor;
-                        double f2 = CalculateDamage(netDmg, 7, e.ArmorTier, ref a2, out double al2);
+                        double f2 = CombatMath.CalculateDamage(netDmg, 7, e.ArmorTier, ref a2, out double al2);
                         e.Armor = a2;
                         e.Hp -= f2;
                         e.SkipNextTurn = true;
@@ -177,7 +146,7 @@ namespace SearchFightExtract
                     {
                         double fireDmg = 75 * (1 + player.CombatDamageBonus);
                         double fa = e.Armor;
-                        double ff = CalculateDamage(fireDmg, 7, e.ArmorTier, ref fa, out double fal);
+                        double ff = CombatMath.CalculateDamage(fireDmg, 7, e.ArmorTier, ref fa, out double fal);
                         e.Armor = fa;
                         e.Hp -= ff;
                         e.SkipNextTurn = true;   // 敌人灭火，失去下一回合
@@ -341,7 +310,7 @@ namespace SearchFightExtract
                         if (e.Hp <= 0) { Console.WriteLine(Style.Paint($"{e.Name} 被烧尽了。", Style.BrightGreen)); Pause(); return CombatResult.Win; }
                     }
 
-                    double edmg = rng.Next((int)(e.Damage / 2), (int)(e.Damage + 1));
+                    double edmg = CombatMath.RollAttack(rng, e.Damage);
                     double armorBefore = player.Armor;
                     double armorLossP;
                     double finalDmg;
@@ -350,20 +319,23 @@ namespace SearchFightExtract
                     if (player.TempArmor > 0)
                     {
                         double ta = player.TempArmor;
-                        finalDmg = CalculateDamage(edmg, e.BulletTier, player.TempArmorTier, ref ta, out armorLossP, player.ArmorLossMult);
+                        finalDmg = CombatMath.CalculateDamage(edmg, e.BulletTier, player.TempArmorTier, ref ta, out armorLossP, player.ArmorLossMult);
                         player.TempArmor = ta;
                     }
                     else
                     {
                         double playerArmor = player.Armor;
-                        finalDmg = CalculateDamage(edmg, e.BulletTier, player.ArmorItem?.Tier ?? 0, ref playerArmor, out armorLossP, player.ArmorLossMult);
+                        finalDmg = CombatMath.CalculateDamage(edmg, e.BulletTier, player.ArmorItem?.Tier ?? 0, ref playerArmor, out armorLossP, player.ArmorLossMult);
                         player.Armor = playerArmor;
                     }
 
-                    if (deepBlue) finalDmg *= 0.7;      // 深蓝：受伤 -30%
-                    if (player.HasPassive(SkillType.Overload)) finalDmg *= 0.9;   // 超载：受伤 -10%
-                    if (player.ArmorBreakDRTurns > 0) finalDmg *= 0.2;             // 铁壁：破甲后 80% 免伤
-                    if (player.FirstAidDRTurns > 0) finalDmg *= 0.2;               // 应急治疗：80% 免伤
+                    // 深蓝 -30% / 超载 -10% / 铁壁破甲 -80% / 应急治疗 -80%
+                    finalDmg = CombatMath.ApplyDamageTakenReduction(
+                        finalDmg,
+                        deepBlue,
+                        player.HasPassive(SkillType.Overload),
+                        player.ArmorBreakDRTurns > 0,
+                        player.FirstAidDRTurns > 0);
                     if (edmg > 0) finalDmg = Math.Max(1, finalDmg);
 
                     // 铁壁：护甲刚刚破碎 → 触发免伤
