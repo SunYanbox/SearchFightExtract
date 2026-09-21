@@ -14,6 +14,7 @@
 - **架构拆分（纯重构，无行为变化）**：战斗界面渲染与指令读入移入 `Combat/CombatView.cs`，`Game.Combat.cs` 不再直接输出任何文本；「比例 → 绿/黄/红」的通用着色助手 `ColorByRatio` 由 `Game` 移到 `Style`（战斗 HUD 与局内 HUD 共用）。
 - **架构拆分（纯重构，无行为变化）**：`Game.Map.cs` 拆为 `World/MapGenerator.cs`（地图连通图、事件抽取、撤离点寻路）与 `World/EnemyFactory.cs`（敌人属性派生、命名）；`Game.Data.cs` 拆为 `World/GameData.cs`（商店库存、掉落表与加权抽取、难度参数），两张表改为静态只读。`Random` 与当前难度改为显式传入，生成逻辑不再依赖 `Game` 实例。
 - **架构拆分（纯重构，无行为变化）**：拾取/背包/换装规则与局内消耗品移入 `Core/Inventory.cs`，同样返回文本行由调用方打印；生产配方与部门升级消耗移入 `World/GameData.cs`；文本行打印助手 `WriteLines` 由 `CombatView` 提到 `ConsoleHelper`，战斗与局内流程共用。
+- **架构拆分（纯重构，无行为变化）**：「沿路径连续移动」的循环从 `MoveMenu` 的快速前往撤离点中抽出为 `TravelPath`，供后续的地图导航共用；撤离点「是否已知」的判定（已探索，或已探明区域 ≥70%）抽出为 `MapGenerator.IsExtractKnown`。到达文案、`Pause()` 与 `return` 仍留在各自的调用方。
 
 ## [0.1.2] - 2026-09-12
 

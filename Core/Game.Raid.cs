@@ -95,7 +95,7 @@ namespace SearchFightExtract
                 int exploredCount = zones.Count(x => x.Explored);
                 bool mapMostlyExplored = exploredCount >= zones.Count * 0.7;
                 var known = Enumerable.Range(0, zones.Count)
-                    .Where(i => zones[i].IsExtract && (zones[i].Explored || mapMostlyExplored) && i != curNow).ToList();
+                    .Where(i => MapGenerator.IsExtractKnown(zones, i) && i != curNow).ToList();
                 int fastIdx = z.Neighbors.Count + 1;
                 if (known.Count > 0)
                     Console.WriteLine($"  {fastIdx}. 快速前往{(mapMostlyExplored ? "撤离点（已探明区域≥70%）" : "已知撤离点")}");
@@ -128,20 +128,25 @@ namespace SearchFightExtract
                     var path = MapGenerator.FindPath(zones, cur, target);
                     if (path == null || path.Count == 0) { Console.WriteLine("无法到达该撤离点。"); Pause(); return; }
 
-                    bool stopped = false;
-                    foreach (var step in path)
-                    {
-                        prev = cur;
-                        cur = step;
-                        zones[cur].Explored = true;
-                        Console.WriteLine($"\n→ 进入【{zones[cur].Name}】");
-                        if (OnEnterZone(zones, cur)) { stopped = true; break; }
-                    }
-                    if (!stopped) Console.WriteLine("\n已抵达撤离点，准备撤离。");
+                    if (!TravelPath(zones, ref cur, ref prev, path)) Console.WriteLine("\n已抵达撤离点，准备撤离。");
                     Pause();
                     return;
                 }
             }
+        }
+
+        // 沿路径连续移动；返回 true 表示中途遭遇敌人、导航被打断
+        bool TravelPath(List<Zone> zones, ref int cur, ref int prev, List<int> path)
+        {
+            foreach (var step in path)
+            {
+                prev = cur;
+                cur = step;
+                zones[cur].Explored = true;
+                Console.WriteLine($"\n→ 进入【{zones[cur].Name}】");
+                if (OnEnterZone(zones, cur)) return true;
+            }
+            return false;
         }
 
         // 返回 true 表示中途遭遇敌人，需要中断连续移动

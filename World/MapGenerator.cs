@@ -74,6 +74,10 @@ namespace SearchFightExtract
 
         public static string RollEvent(Random rng) => Events[rng.Next(Events.Length)];
 
+        /// <summary>撤离点是否已为玩家所知：已探索，或本局已探明区域比例达到 70%。</summary>
+        public static bool IsExtractKnown(List<Zone> zones, int idx)
+            => zones[idx].IsExtract && (zones[idx].Explored || zones.Count(x => x.Explored) >= zones.Count * 0.7);
+
         /// <summary>BFS 最短路径（用于快速前往撤离点）；不可达返回 null。</summary>
         public static List<int> FindPath(List<Zone> zones, int from, int to)
         {
