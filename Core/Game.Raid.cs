@@ -59,6 +59,7 @@ namespace SearchFightExtract
                 Console.WriteLine($"  5. 使用兴奋剂（携带 {player.RaidStims}）");
                 Console.WriteLine("  6. 查看背包/切换装备");
                 Console.WriteLine("  7. 撤离");
+                Console.WriteLine("  8. 查看地图");
                 Console.Write("\n> ");
 
                 switch (ReadLine())
@@ -72,6 +73,7 @@ namespace SearchFightExtract
                     case "7":
                         if (z.IsExtract) { ExtractResult(); return; }
                         Console.WriteLine("这里不是撤离点。"); Pause(); break;
+                    case "8": MapMenu(zones, ref cur, ref prev); break;
                 }
             }
         }
@@ -132,6 +134,38 @@ namespace SearchFightExtract
                     Pause();
                     return;
                 }
+            }
+        }
+
+        // 查看全图并选中任意区域（含未探索）自动导航过去
+        void MapMenu(List<Zone> zones, ref int cur, ref int prev)
+        {
+            while (true)
+            {
+                Clear();                 // 地图是整屏；MoveMenu 不清屏是因为它接着上一屏往下写
+                Console.WriteLine("════════ 战 区 地 图 ════════\n");
+                WriteLines(MapView.Render(zones, cur));
+                Console.Write("\n> ");
+
+                var input = ReadLine();
+                // 区域编号是 0 基的，0 是合法的目标，所以"返回"只能用空回车
+                if (input == "") return;
+                if (!int.TryParse(input, out int target) || target < 0 || target >= zones.Count) continue;
+                if (target == cur) { Console.WriteLine("\n你已经在此地。"); Pause(); continue; }
+
+                // FindPath(cur, cur) 返回的是空列表而不是 null，所以 target == cur 必须先拦掉：
+                // 空路径进 TravelPath 会一次循环都不跑，prev 停在旧值上、还会打出假的到达提示。
+                var path = MapGenerator.FindPath(zones, cur, target);
+                if (path == null || path.Count == 0) { Console.WriteLine("\n无法到达该区域。"); Pause(); return; }
+
+                // 目标可能还没探索过，这里不能打印它的名字；逐跳的"进入【X】"是踩进去之后才打的。
+                // prev 只由 TravelPath 维护——直接 cur = target 会破坏"每次 cur 变动都同步 prev"
+                // 这个不变量，让战斗脱离时的 cur = prev 变成瞬移到非邻接区域。
+                Console.WriteLine("\n开始自动导航...");
+                if (!TravelPath(zones, ref cur, ref prev, path)) Console.WriteLine($"\n已抵达【{zones[cur].Name}】。");
+                else Console.WriteLine("\n导航中断。");
+                Pause();
+                return;
             }
         }
 
