@@ -63,5 +63,4 @@
 
 ### Notes
 
-- 本项目代码由 **DeepSeek V4.1 Flash** 模型生成，通过 **ManualAid** 代理框架编排。
 - 采用 [Mozilla Public License 2.0](LICENSE) 授权。

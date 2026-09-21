@@ -2,8 +2,6 @@
 
 > 一款运行在终端里的单机撤离射击（Extraction Shooter）小游戏。搜刮物资、对抗敌人、活着撤离——装备与战利品只在你成功撤离时才真正属于你。
 >
-> 🤖 推理模型：[DeepSeek V4.1 Flash](https://www.deepseek.com/news/deepseek-v4-1-flash/)
-> 🛠️ 代理框架：[ManualAid](https://github.com/SunYanbox/ManualAid-Rust)
 
 ---
 
