@@ -43,109 +43,31 @@ namespace SearchFightExtract
             return log;
         }
 
-        /// <summary>主动技能结算。冷却在最后统一进入，无论技能是否命中。</summary>
+        /// <summary>
+        /// 主动技能结算。冷却在最后统一进入，无论技能是否命中。
+        /// 使用数据驱动：效果计算委托由 SkillData.Effect 提供，
+        /// 侧效应（清除冷却、设置免伤等）由 CombatActions 统一处理。
+        /// </summary>
         public static List<string> UseSkill(Player p, Enemy e, Skill skill, Random rng)
         {
             var log = new List<string>();
 
-            switch (skill.Type)
+            // 通用：调用数据定义的效果计算委托
+            log.AddRange(skill.ComputeEffect(p, e));
+
+            // 主动技能特有侧效应（Adrenaline 清除冷却、Incendiary 设置敌人跳过回合）
+            if (skill.Type == SkillType.Adrenaline)
             {
-                case SkillType.Shield:
-                    p.Shield += 120;
-                    p.TempArmor += 80;
-                    p.TempArmorTier = 6;
-                    log.Add(Style.Paint("应急护盾：获得120点护盾 + 80点临时护甲（六级，每回合衰减20）。", CombatStyle.Shield));
-                    break;
+                foreach (var sk in p.Actives) sk.CurrentCooldown = 0;
+                log.Add("肾上腺素：所有主动技能冷却已清除！（不消耗行动）");
+            }
 
-                case SkillType.Dragon:
-                    {
-                        // 60 真实伤害（无视护甲）+ 60 普通伤害，均可享受增伤乘区；敌人生命<70% 时额外 +75%（入乘区）
-                        double bonus = p.CombatDamageBonus + (e.WeakenTurns > 0 ? 0.2 : 0);
-                        if (e.Hp < e.MaxHp * 0.7) bonus += 0.75;
-                        double mult = 1 + bonus;
-
-                        double trueDmg = 60 * mult;
-                        e.Hp -= trueDmg;
-                        log.Add($"磁吸炸弹·真实伤害：{Style.Paint($"{trueDmg:F1}", CombatStyle.Damage)}（无视护甲）");
-                        log.AddRange(ApplyOnHit(p, trueDmg));
-
-                        if (e.Hp > 0)
-                        {
-                            double normBase = 60 * mult;
-                            double a1 = e.Armor;
-                            double f1 = CombatMath.CalculateDamage(normBase, 7, e.ArmorTier, ref a1, out double al1);
-                            e.Armor = a1;
-                            e.Hp -= f1;
-                            if (al1 > 0)
-                                log.Add($"磁吸炸弹·爆炸伤害：{Style.Paint($"{f1:F1}", CombatStyle.Damage)}，削减敌方 {Style.Paint($"{al1:F1}", CombatStyle.Armor)} 点护甲。");
-                            else
-                                log.Add($"磁吸炸弹·爆炸伤害：{Style.Paint($"{f1:F1}", CombatStyle.Damage)}。");
-                            log.AddRange(ApplyOnHit(p, f1));
-                        }
-                    }
-                    break;
-
-                case SkillType.Net:
-                    {
-                        double netDmg = 60 * (1 + p.CombatDamageBonus);
-                        double a2 = e.Armor;
-                        double f2 = CombatMath.CalculateDamage(netDmg, 7, e.ArmorTier, ref a2, out double al2);
-                        e.Armor = a2;
-                        e.Hp -= f2;
-                        e.SkipNextTurn = true;
-                        bool newWeaken = e.WeakenTurns <= 0;
-                        if (newWeaken) e.WeakenTurns = 3;   // 受伤状态 3 回合，不重复叠加
-                        if (al2 > 0)
-                            log.Add($"防爆刺网造成 {Style.Paint($"{f2:F1}", CombatStyle.Damage)} 伤害，削减敌方 {Style.Paint($"{al2:F1}", CombatStyle.Armor)} 点护甲，并束缚敌人。");
-                        else
-                            log.Add($"防爆刺网造成 {Style.Paint($"{f2:F1}", CombatStyle.Damage)} 伤害，并束缚敌人。");
-                        if (newWeaken)
-                            log.Add(Style.Paint("  敌人陷入【受伤】状态（3回合，受到伤害+20%）", Style.BrightYellow));
-                        else
-                            log.Add(Style.Paint("  敌人已处于【受伤】状态（不叠加）", Style.BrightBlack));
-                        log.AddRange(ApplyOnHit(p, f2));
-                    }
-                    break;
-
-                case SkillType.RapidFire:
-                    log.Add("快速射击（三段）！");
-                    log.AddRange(PlayerAttack(p, e, rng, 1.0));
-                    if (e.Hp > 0) log.AddRange(PlayerAttack(p, e, rng, 0.7));
-                    if (e.Hp > 0) log.AddRange(PlayerAttack(p, e, rng, 0.7));
-                    break;
-
-                case SkillType.FirstAid:
-                    p.Hp = Math.Min(p.MaxHp, p.Hp + 60);
-                    p.FirstAidDRTurns = 3;   // 80% 免伤，持续 3 回合
-                    // 获得等同于最大生命值 80% 的护盾
-                    double faShield = p.MaxHp * 0.8;
-                    p.Shield += faShield;
-                    log.Add(Style.Paint("应急治疗：恢复60生命，获得80%免伤（3回合）。", CombatStyle.Heal));
-                    log.Add(Style.Paint($"  获得 {faShield:F1} 点护盾（最大生命值 80%）。", CombatStyle.Shield));
-                    break;
-
-                case SkillType.Adrenaline:
-                    foreach (var sk in p.Actives) sk.CurrentCooldown = 0;
-                    log.Add("肾上腺素：所有主动技能冷却已清除！（不消耗行动）");
-                    break;
-
-                case SkillType.Incendiary:
-                    {
-                        double fireDmg = 75 * (1 + p.CombatDamageBonus);
-                        double fa = e.Armor;
-                        double ff = CombatMath.CalculateDamage(fireDmg, 7, e.ArmorTier, ref fa, out double fal);
-                        e.Armor = fa;
-                        e.Hp -= ff;
-                        e.SkipNextTurn = true;   // 敌人灭火，失去下一回合
-                        e.BurnTurns = 3;
-                        e.BurnDamage = 15;
-                        if (fal > 0)
-                            log.Add($"燃烧弹造成 {Style.Paint($"{ff:F1}", CombatStyle.Damage)} 伤害，削减敌方 {Style.Paint($"{fal:F1}", CombatStyle.Armor)} 点护甲，敌人失去下一回合灭火！");
-                        else
-                            log.Add($"燃烧弹造成 {Style.Paint($"{ff:F1}", CombatStyle.Damage)} 伤害，敌人失去下一回合灭火！");
-                        log.AddRange(ApplyOnHit(p, ff));
-                    }
-                    break;
+            if (skill.Type == SkillType.Incendiary)
+            {
+                e.SkipNextTurn = true;   // 敌人灭火，失去下一回合
+                e.BurnTurns = 3;
+                e.BurnDamage = 15;
+                // 燃烧弹伤害已在 ComputeEffect 中返回
             }
 
             skill.CurrentCooldown = skill.Cooldown;

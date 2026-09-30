@@ -2,7 +2,7 @@ namespace SearchFightExtract
 {
     enum ItemType { Weapon, Armor, Medkit, Loot, RepairKit, Stim, Rig, Backpack }
 
-    enum SkillType
+    public enum SkillType
     {
         // ===== 被动 =====
         Overload,   // 超载：受伤-25%，每2回合额外攻击
@@ -22,6 +22,14 @@ namespace SearchFightExtract
         FirstAid,   // 应急治疗
         Adrenaline, // 肾上腺素：清冷却
         Incendiary  // 燃烧弹
+    }
+
+    static class SkillTypeExtensions
+    {
+        public static bool IsPassive(this SkillType type) =>
+            type is SkillType.Overload or SkillType.BeeMedic or SkillType.DeepBlue or
+            SkillType.IronWall or SkillType.Scavenger or SkillType.Nimble or
+            SkillType.StormCloud or SkillType.Reappear;
     }
 
     enum CombatResult { Win, Fled, Dead }
