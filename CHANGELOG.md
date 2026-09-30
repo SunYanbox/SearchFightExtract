@@ -7,6 +7,19 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-12
+
+### Added
+
+- **技能系统数据驱动**：将技能定义从 `Skill.cs` 构造器的硬编码开关迁移为数据表 `SkillData.cs`，包含 13 项技能定义（8 项被动 + 5 项主动），效果计算委托 `Func<Player, Enemy, List<string>>` 替代原 4 参数签名。
+- **Skill.cs 重构**：`ComputeEffect()` 委托调用 `Definition.Effect(p, e)`；`IsPassive()` 使用 `SkillData.Get(t) is { Type.IsPassive: true }` 模式匹配。
+- **Enums.cs**：新增 `SkillTypeExtensions` 扩展方法 `IsPassive()`，判断 `SkillType` 是否为被动技能。
+- **CombatActions.UseSkill**：更新为调用 `skill.ComputeEffect(p, e)` 替代原硬编码 `switch` 语句；`Adrenaline` 清除所有主动技能冷却，`Incendiary` 设置敌人跳过下一回合。
+
+### Changed
+
+- **架构拆分**：`Combat/CombatActions.cs` 使用数据驱动效果委托替代 `switch` 语句；`Adrenaline` 清除冷却、`Incendiary` 设置敌人跳过回合作为特殊处理。
+
 ## [0.2.0] - 2026-09-21
 
 ### Added
