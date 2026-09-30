@@ -56,25 +56,49 @@ jobs:
       - name: Restore
         run: dotnet restore
 
-      # 自包含单文件发布：无需目标机器预装 .NET 运行时。
-      # PE 平台会把符号写入同名的 .pdb 伴随文件，因此发布
-      # 「精简可执行文件 + 独立符号文件」两者。
-      - name: Publish (self-contained single file)
+      # ---------- 不内置 Runtime（默认名称，体积最小，需预装 .NET 10 桌面运行时）----------
+      # 用默认 exe 名的即此产物：托管程序集全部打进 exe，解压后只有一个可执行文件。
+      - name: Publish framework-dependent
+        run: >
+          dotnet publish SearchFightExtract.csproj
+          -c Release
+          -r win-x64
+          --self-contained false
+          -p:PublishSingleFile=true
+          -warnaserror
+          -o publish/framework-dependent
+
+      # ---------- 内置 Runtime（自包含）----------
+      # 自包含发布会产出 200+ 个文件（.NET 运行时原生库等），
+      # 因此改用完整目录发布后打包成 zip，用户解压后即可运行，
+      # 产物确定性最高，避免把文件散落在当前目录。
+      - name: Publish self-contained
         run: >
           dotnet publish SearchFightExtract.csproj
           -c Release
           -r win-x64
           --self-contained true
-          -p:PublishSingleFile=true
-          -o publish
+          -warnaserror
+          -o publish/SearchFightExtract-selfcontained
 
-      # 符号文件（.pdb）在某些发布配置下可能不生成，
-      # 未匹配的通配符属正常情况，不应视为错误。
-      - name: Upload asset to Release
+      # 压缩整个目录，使 zip 内以 SearchFightExtract-selfcontained/ 为根，
+      # 用户解压后不会把两百余个文件散在当前目录。
+      - name: Bundle self-contained into zip
+        shell: pwsh
+        run: >
+          Compress-Archive
+          -Path publish/SearchFightExtract-selfcontained
+          -DestinationPath publish/SearchFightExtract-selfcontained.zip
+          -CompressionLevel Optimal
+
+      # 符号文件（.pdb）在部分发布配置下可能不生成，
+      # fail_on_unmatched_files 关闭以免因此中断发布。
+      - name: Upload assets to Release
         uses: softprops/action-gh-release@v2
         with:
           upload_url: ${{ github.event.release.upload_url }}
           fail_on_unmatched_files: false
           files: |
-            publish/SearchFightExtract.exe
-            publish/SearchFightExtract.pdb
+            publish/framework-dependent/SearchFightExtract.exe
+            publish/framework-dependent/SearchFightExtract.pdb
+            publish/SearchFightExtract-selfcontained.zip

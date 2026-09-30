@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Release 工作流**：发布产物改为「不内置运行时（framework-dependent 单文件 exe + pdb）」与「内置运行时（自包含完整目录 zip）」两个独立产物分开上传。
+
 ## [0.3.0] - 2026-09-12
 
 ### Added
